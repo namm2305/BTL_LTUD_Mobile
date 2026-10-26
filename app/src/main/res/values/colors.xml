@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand / Primary Colors (Cam Đỏ Ấm Áp - Phong cách Nhà hàng) -->
+    <color name="primary">#FF5722</color>
+    <color name="primary_dark">#E64A19</color>
+    <color name="primary_container">#FFD8CC</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_primary_container">#3E0A00</color>
+
+    <!-- Secondary & Accent Colors (Hổ Phách / Vàng Ấm) -->
+    <color name="secondary">#FF9800</color>
+    <color name="secondary_dark">#F57C00</color>
+    <color name="secondary_container">#FFE0B2</color>
+    <color name="on_secondary">#FFFFFF</color>
+
+    <!-- Status & Functional -->
+    <color name="tertiary">#2E7D32</color>
+    <color name="error">#D32F2F</color>
+
+    <!-- Backgrounds & Surfaces (Sáng sủa, Hiện đại) -->
+    <color name="background_light">#F8F9FA</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_variant_light">#F1F3F5</color>
+    <color name="on_background_light">#1F2937</color>
+    <color name="on_surface_light">#1F2937</color>
+
+    <!-- Dark Mode Backgrounds & Surfaces -->
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="surface_variant_dark">#2C2C2C</color>
+    <color name="on_background_dark">#F3F4F6</color>
+    <color name="on_surface_dark">#F3F4F6</color>
+</resources>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Cảnh báo khi Nhân viên chưa Check-in ca làm -->
+    <LinearLayout
+        android:id="@+id/layoutInactiveShiftNotice"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="visible">
+
+        <ImageView
+            android:id="@+id/ivNoticeIcon"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:contentDescription="Cảnh báo ca làm"
+            android:src="@android:drawable/ic_dialog_alert"
+            app:tint="?attr/colorPrimary" />
+
+        <TextView
+            android:id="@+id/tvNoticeText"
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="Bạn cần Check-in ca làm việc để có thể phục vụ khách hàng."
+            android:textColor="@color/on_surface_light"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Danh sách Đơn hàng & Bàn ăn khi đang trong ca làm Active -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvActiveOrders"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:padding="8dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvEmptyOrders"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="Hiện tại không có bàn nào đang gọi món"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+</FrameLayout>
