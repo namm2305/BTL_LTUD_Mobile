@@ -35,18 +35,32 @@ class OwnerMenuFragment : Fragment() {
 
     // Launcher mở thư viện chọn ảnh thiết bị
     private val pickImageLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            selectedImageUri = uri
             try {
-                // Xin quyền đọc vĩnh viễn URI ảnh cục bộ
-                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                requireContext().contentResolver.takePersistableUriPermission(uri, takeFlags)
-            } catch (e: Exception) {
-                e.printStackTrace()
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                requireContext().contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (e: SecurityException) {
+                Toast.makeText(
+                    requireContext(),
+                    "Không thể giữ quyền đọc ảnh. Vui lòng chọn ảnh khác.",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@registerForActivityResult
             }
-            currentDialogBinding?.ivMenuImagePreview?.setImageURI(uri)
+            selectedImageUri = uri
+            currentDialogBinding?.ivMenuImagePreview?.let { preview ->
+                try {
+                    preview.setImageURI(null)
+                    preview.setImageURI(uri)
+                    if (preview.drawable == null) {
+                        preview.setImageResource(R.drawable.ic_menu_gallery)
+                    }
+                } catch (e: Exception) {
+                    preview.setImageResource(R.drawable.ic_menu_gallery)
+                }
+            }
         }
     }
 
@@ -113,7 +127,7 @@ class OwnerMenuFragment : Fragment() {
 
         // Nút "Chọn ảnh từ Thư viện"
         dialogBinding.btnSelectImage.setOnClickListener {
-            pickImageLauncher.launch("image/*")
+            pickImageLauncher.launch(arrayOf("image/*"))
         }
 
         AlertDialog.Builder(requireContext())

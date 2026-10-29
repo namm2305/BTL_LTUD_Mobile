@@ -146,7 +146,7 @@ class StaffShiftManagementFragment : Fragment() {
                                 text = "${shift.shiftName} (${shift.expectedStartTime} - ${shift.expectedEndTime})"
                                 isEnabled = true
                             } else {
-                                text = "${shift.shiftName} (${shift.expectedStartTime} - ${shift.expectedEndTime}) - (Chưa đến giờ Check-in)"
+                                text = "${shift.shiftName} (${shift.expectedStartTime} - ${shift.expectedEndTime}) - (Ngoài giờ Check-in: mở trước ca 15 phút)"
                                 isEnabled = false
                             }
                             textSize = 15f
@@ -176,7 +176,7 @@ class StaffShiftManagementFragment : Fragment() {
                                 Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                             }
                         } else {
-                            Toast.makeText(requireContext(), "Vui lòng chọn ca làm đã đăng ký và đến giờ Check-in", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(requireContext(), "Vui lòng chọn ca đã đăng ký. Check-in mở từ 15 phút trước giờ bắt đầu ca.", Toast.LENGTH_SHORT).show()
                         }
                     }
                     .setNegativeButton("Hủy", null)

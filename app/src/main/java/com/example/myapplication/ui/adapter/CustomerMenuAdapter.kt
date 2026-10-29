@@ -1,6 +1,6 @@
 package com.example.myapplication.ui.adapter
 
-import android.R
+import com.example.myapplication.R
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -36,15 +36,22 @@ class CustomerMenuAdapter(
             binding.tvItemCategory.text = item.category
             binding.tvItemPrice.text = formatter.format(item.price)
 
-            val uriStr = item.imageUri ?: item.imageUrl
-            if (!uriStr.isNullOrEmpty()) {
+            val uriStr = item.imageUri?.takeIf { it.isNotBlank() } ?: item.imageUrl
+            val imageView = binding.ivCustomerMenuItemImage
+            // Clear the previous row's image, including ImageView's cached URI.
+            imageView.setImageURI(null)
+            if (!uriStr.isNullOrBlank()) {
                 try {
-                    binding.ivCustomerMenuItemImage.setImageURI(Uri.parse(uriStr))
+                    imageView.setImageURI(Uri.parse(uriStr))
+                    // setImageURI can fail silently when the URI is inaccessible.
+                    if (imageView.drawable == null) {
+                        imageView.setImageResource(R.drawable.ic_app_logo)
+                    }
                 } catch (e: Exception) {
-                    binding.ivCustomerMenuItemImage.setImageResource(R.drawable.ic_menu_gallery)
+                    imageView.setImageResource(R.drawable.ic_app_logo)
                 }
             } else {
-                binding.ivCustomerMenuItemImage.setImageResource(R.drawable.ic_menu_gallery)
+                imageView.setImageResource(R.drawable.ic_app_logo)
             }
 
             binding.btnAddToCart.setOnClickListener { onAddToCart(item) }

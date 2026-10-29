@@ -47,6 +47,12 @@ class StaffShiftRegisterAdapter(
                     binding.btnRegisterShift.isEnabled = false
                     binding.btnRegisterShift.setOnClickListener(null)
                 }
+                ShiftRegistrationStatus.LOCKED -> {
+                    binding.btnRegisterShift.text = "Không thể hủy ca"
+                    binding.btnRegisterShift.setBackgroundColor(Color.parseColor("#757575"))
+                    binding.btnRegisterShift.isEnabled = false
+                    binding.btnRegisterShift.setOnClickListener(null)
+                }
                 ShiftRegistrationStatus.REGISTERED -> {
                     binding.btnRegisterShift.text = "Hủy đăng ký"
                     binding.btnRegisterShift.setBackgroundColor(Color.parseColor("#D32F2F")) // Màu Đỏ

@@ -17,7 +17,7 @@ import com.example.myapplication.ui.staff.StaffActivity
 import com.example.myapplication.ui.viewmodel.AuthState
 import com.example.myapplication.ui.viewmodel.AuthViewModel
 import com.example.myapplication.ui.viewmodel.ViewModelFactory
-import com.google.zxing.integration.android.IntentIntegrator
+import com.google.zxing.integration.android          .IntentIntegrator
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 

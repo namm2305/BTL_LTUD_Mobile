@@ -16,6 +16,9 @@ import com.example.myapplication.data.repository.DiscountRepository
 import com.example.myapplication.data.repository.OrderRepository
 import com.example.myapplication.data.repository.TableRepository
 import com.example.myapplication.data.repository.TimekeepingRepository
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,14 +57,24 @@ class StaffViewModel(
         return combine(
             timekeepingRepository.getShiftsByDate(dateStr),
             timekeepingRepository.getRegisteredShiftsForStaffOnDate(staffId, dateStr),
-            timekeepingRepository.getCompletedShiftIdsForStaffOnDate(staffId, dateStr)
-        ) { shiftList, registeredList, completedShiftIds ->
+            timekeepingRepository.getCompletedShiftIdsForStaffOnDate(staffId, dateStr),
+            timekeepingRepository.getAttendanceByStaff(staffId),
+            flow {
+                while (true) {
+                    emit(System.currentTimeMillis())
+                    delay(1_000)
+                }
+            }
+        ) { shiftList, registeredList, completedShiftIds, attendanceList, now ->
             val registeredShiftIds = registeredList.mapNotNull { it.shift?.id }.toSet()
             val completedSet = completedShiftIds.toSet()
 
             shiftList.map { shift ->
                 val status = when {
                     completedSet.contains(shift.id) -> ShiftRegistrationStatus.COMPLETED
+                    registeredShiftIds.contains(shift.id) &&
+                        (attendanceList.any { it.attendance.shiftId == shift.id && it.attendance.date == dateStr } ||
+                            isCancellationClosed(shift, dateStr, now)) -> ShiftRegistrationStatus.LOCKED
                     registeredShiftIds.contains(shift.id) -> ShiftRegistrationStatus.REGISTERED
                     else -> ShiftRegistrationStatus.AVAILABLE
                 }
@@ -73,12 +86,43 @@ class StaffViewModel(
         }
     }
 
+    // Hạn hủy ca là lúc mở Check-in: 15 phút trước giờ bắt đầu, theo ngày đăng ký.
+    private fun isCancellationClosed(
+        shift: ShiftEntity,
+        dateStr: String,
+        now: Long = System.currentTimeMillis()
+    ): Boolean {
+        val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).apply {
+            isLenient = false
+        }
+        val startTime = try {
+            format.parse("$dateStr ${shift.expectedStartTime}")?.time
+        } catch (e: java.text.ParseException) {
+            null
+        } ?: return true
+        return now >= startTime - 15 * 60 * 1000L
+    }
+
     // Toggle Đăng ký / Hủy đăng ký ca làm
     fun toggleShiftRegistration(staffId: Long, shiftId: Long, dateStr: String, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             val existing = timekeepingRepository.getRegistration(staffId, shiftId, dateStr)
             if (existing != null) {
-                // Hủy đăng ký
+                val shift = timekeepingRepository.getShiftById(shiftId)
+                if (shift == null) {
+                    onResult(false, "Ca làm không còn tồn tại.")
+                    return@launch
+                }
+                val hasCheckedIn = timekeepingRepository.getAttendanceByStaff(staffId).first()
+                    .any { it.attendance.shiftId == shiftId && it.attendance.date == dateStr }
+                if (hasCheckedIn) {
+                    onResult(false, "Không thể hủy ca đã Check-in.")
+                    return@launch
+                }
+                if (isCancellationClosed(shift, dateStr)) {
+                    onResult(false, "Không thể hủy ca từ 15 phút trước giờ bắt đầu ca.")
+                    return@launch
+                }
                 timekeepingRepository.cancelRegistration(staffId, shiftId, dateStr)
                 onResult(true, "Đã hủy đăng ký ca làm việc thành công!")
             } else {
@@ -139,6 +183,16 @@ class StaffViewModel(
                 onResult(false, "Bạn đang trong ca làm việc rồi, vui lòng Check-out trước!")
                 return@launch
             }
+            val shift = timekeepingRepository.getShiftById(shiftId)
+            if (shift == null) {
+                onResult(false, "Ca làm không còn tồn tại.")
+                return@launch
+            }
+            if (!canCheckInShift(shift)) {
+                onResult(false, "Chỉ được Check-in từ 15 phút trước giờ bắt đầu đến giờ kết thúc ca.")
+                return@launch
+            }
+
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayDate = dateFormat.format(Date())
 
