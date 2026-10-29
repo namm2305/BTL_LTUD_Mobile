@@ -68,7 +68,7 @@ class OwnerActivity : AppCompatActivity() {
         val adapter = OwnerPagerAdapter(this)
         binding.viewPagerOwner.adapter = adapter
 
-        val tabTitles = arrayOf("Thực Đơn", "Mã Giảm Giá", "Quản Lý Bàn", "Nhân Viên", "Ca Làm", "Chấm Công", "Báo Cáo")
+        val tabTitles = arrayOf("Thực Đơn", "Mã Giảm Giá", "Quản Lý Bàn", "Nhân Viên", "Ca Làm", "Chấm Công", "Báo Cáo", "Duyệt tăng ca")
 
         TabLayoutMediator(binding.tabLayoutOwner, binding.viewPagerOwner) { tab, position ->
             tab.text = tabTitles[position]
@@ -78,7 +78,7 @@ class OwnerActivity : AppCompatActivity() {
     private inner class OwnerPagerAdapter(activity: AppCompatActivity) :
         FragmentStateAdapter(activity) {
 
-        override fun getItemCount(): Int = 7
+        override fun getItemCount(): Int = 8
 
         override fun createFragment(position: Int): Fragment {
             return when (position) {
@@ -89,6 +89,7 @@ class OwnerActivity : AppCompatActivity() {
                 4 -> OwnerShiftFragment()
                 5 -> OwnerAttendanceFragment()
                 6 -> OwnerReportFragment()
+                7 -> OwnerOtApprovalFragment()
                 else -> OwnerMenuFragment()
             }
         }

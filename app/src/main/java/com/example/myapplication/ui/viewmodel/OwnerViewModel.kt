@@ -185,7 +185,23 @@ class OwnerViewModel(
     fun markSalaryAsPaid(staffId: Long, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             timekeepingRepository.markSalaryAsPaid(staffId)
-            onResult(true, "Đã xác nhận thanh toán toàn bộ lương cho nhân viên!")
+            onResult(true, "Đã thanh toán các ca đã chốt. Ca chờ duyệt OT được giữ lại.")
+        }
+    }
+
+    val pendingOt: StateFlow<List<AttendanceWithDetails>> = timekeepingRepository.getPendingOt()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun decideOt(id: Long, approved: Boolean, minutes: Long, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val success = timekeepingRepository.decideOt(id, approved, minutes)
+                onResult(success, if (success) {
+                    if (approved) "Đã duyệt tăng ca" else "Đã từ chối tăng ca"
+                } else "Yêu cầu không còn chờ duyệt hoặc số phút không hợp lệ.")
+            } catch (_: Exception) {
+                onResult(false, "Không thể cập nhật OT. Vui lòng thử lại.")
+            }
         }
     }
 

@@ -75,6 +75,15 @@
             android:textColor="@android:color/holo_green_dark"
             android:textSize="14sp" />
 
+        <TextView
+            android:id="@+id/tvSalarySummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

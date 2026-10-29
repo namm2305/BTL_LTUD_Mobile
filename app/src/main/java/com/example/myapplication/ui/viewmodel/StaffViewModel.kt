@@ -8,6 +8,8 @@ import com.example.myapplication.data.entity.Order
 import com.example.myapplication.data.entity.RestaurantTable
 import com.example.myapplication.data.entity.ShiftEntity
 import com.example.myapplication.data.model.AttendanceWithDetails
+import com.example.myapplication.data.model.ShiftSalaryDetails
+import com.example.myapplication.data.model.OtPolicy
 import com.example.myapplication.data.model.OrderWithItems
 import com.example.myapplication.data.model.ShiftItemWithRegistrationState
 import com.example.myapplication.data.model.ShiftRegistrationStatus
@@ -172,9 +174,13 @@ class StaffViewModel(
         }
     }
 
-    fun getStaffTotalSalary(staffId: Long): Flow<Double?> {
-        return timekeepingRepository.getTotalSalaryByStaff(staffId)
-    }
+    private val accumulatedSalaryFlows = mutableMapOf<Long, StateFlow<Double?>>()
+
+    fun getStaffTotalSalary(staffId: Long): StateFlow<Double?> =
+        accumulatedSalaryFlows.getOrPut(staffId) {
+            timekeepingRepository.getAccumulatedSalaryByStaff(staffId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        }
 
     fun checkInShift(staffId: Long, shiftId: Long, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
@@ -236,45 +242,37 @@ class StaffViewModel(
             }
 
             // 3. Kiểm tra nếu Check-out sớm hơn giờ kết thúc ca -> Phạt 50,000 đ
-            var isEarlyCheckOut = false
-            if (shift != null) {
-                val endParts = shift.expectedEndTime.split(":")
-                val expEndCal = Calendar.getInstance().apply {
-                    timeInMillis = checkInTime
-                    set(Calendar.HOUR_OF_DAY, endParts.getOrNull(0)?.toIntOrNull() ?: 15)
-                    set(Calendar.MINUTE, endParts.getOrNull(1)?.toIntOrNull() ?: 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                    if (shift.isOvernight) {
-                        add(Calendar.DAY_OF_MONTH, 1)
-                    }
-                }
-                isEarlyCheckOut = checkOutTime < (expEndCal.timeInMillis - 5 * 60 * 1000)
-            }
+            val expectedEnd = shift?.let { OtPolicy.expectedEnd(it, active.date) }
+            val isEarlyCheckOut = expectedEnd != null &&
+                checkOutTime < expectedEnd - 5 * 60 * 1000L
+            val otMinutes = expectedEnd?.let { OtPolicy.actualMinutes(it, checkOutTime) } ?: 0L
+            val otStatus = expectedEnd?.let { OtPolicy.status(it, checkOutTime) } ?: "NONE"
             val earlyPenalty = if (isEarlyCheckOut) 50000.0 else 0.0
 
-            // 4. Phân chia Giờ làm chuẩn và Giờ làm thêm
-            val standardHours = Math.min(totalWorkedHours, expectedShiftDuration)
-            val overtimeHours = Math.max(0.0, totalWorkedHours - expectedShiftDuration)
-
-            // 5. Tính lương chuẩn, lương tăng ca và Tổng Lương
-            val baseSalary = standardHours * hourlyRate
-            val overtimePay = overtimeHours * hourlyRate * overtimeMultiplier
-            val totalSalary = (baseSalary + overtimePay - earlyPenalty).coerceAtLeast(0.0)
-
-            // 6. Cập nhật record Attendance trong Room DB
-            val updatedAttendance = active.copy(
-                actualCheckOut = checkOutTime,
-                earlyPenalty = earlyPenalty,
-                overtimePay = overtimePay,
-                totalSalary = totalSalary
+            val details = ShiftSalaryDetails.calculate(
+                workedHours = totalWorkedHours.coerceAtLeast(0.0),
+                expectedHours = expectedShiftDuration,
+                hourlyRate = hourlyRate,
+                overtimeMultiplier = overtimeMultiplier,
+                fineAmount = earlyPenalty
+            ).copy(overtimeSalary = 0.0)
+            val totalSalary = details.totalSalary
+            timekeepingRepository.updateShiftSalary(
+                active.copy(
+                    actualCheckOut = checkOutTime,
+                    otMinutes = otMinutes,
+                    otStatus = otStatus,
+                    approvedOtMinutes = 0,
+                    otRatePerHour = hourlyRate * overtimeMultiplier
+                ),
+                details
             )
-            timekeepingRepository.updateAttendance(updatedAttendance)
             _activeAttendance.value = null
 
             val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
             val salaryStr = formatter.format(totalSalary)
             var msg = "Check-out thành công! Lương ca này: $salaryStr"
+            if (otStatus == "PENDING") msg += " · $otMinutes phút OT đang chờ duyệt"
             if (isEarlyCheckOut) {
                 msg += " (Bị trừ 50k do về sớm)"
             }

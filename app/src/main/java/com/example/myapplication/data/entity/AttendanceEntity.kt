@@ -1,5 +1,6 @@
 package com.example.myapplication.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -34,8 +35,20 @@ data class AttendanceEntity(
     val date: String, // "YYYY-MM-DD"
     val actualCheckIn: Long = System.currentTimeMillis(),
     val actualCheckOut: Long? = null,
-    val earlyPenalty: Double = 50000.0, // Phạt về sớm/đến muộn (mặc định 50,000 đ)
-    val overtimePay: Double = 0.0,      // Tiền lương tăng ca thêm
+    @ColumnInfo(defaultValue = "0.0")
+    val baseSalary: Double = 0.0,
+    @ColumnInfo(name = "earlyPenalty")
+    val fineAmount: Double = 0.0,
+    @ColumnInfo(name = "overtimePay")
+    val overtimeSalary: Double = 0.0,
+    @ColumnInfo(defaultValue = "0")
+    val otMinutes: Long = 0,
+    @ColumnInfo(defaultValue = "'NONE'")
+    val otStatus: String = "NONE",
+    @ColumnInfo(defaultValue = "0")
+    val approvedOtMinutes: Long = 0,
+    @ColumnInfo(defaultValue = "0.0")
+    val otRatePerHour: Double = 0.0,
     val totalSalary: Double = 0.0,      // Tổng lương thực nhận cho ca làm này
     val isPaid: Boolean = false         // Trạng thái đã thanh toán lương hay chưa (mặc định false)
 )

@@ -7,6 +7,7 @@ import com.example.myapplication.data.entity.AttendanceEntity
 import com.example.myapplication.data.entity.ShiftEntity
 import com.example.myapplication.data.entity.ShiftRegistrationEntity
 import com.example.myapplication.data.model.AttendanceWithDetails
+import com.example.myapplication.data.model.ShiftSalaryDetails
 import com.example.myapplication.data.model.ShiftRegistrationWithDetails
 import kotlinx.coroutines.flow.Flow
 
@@ -39,6 +40,34 @@ class TimekeepingRepository(
     suspend fun updateAttendance(attendance: AttendanceEntity) {
         attendanceDao.updateAttendance(attendance)
     }
+
+    suspend fun updateShiftSalary(
+        attendance: AttendanceEntity,
+        details: ShiftSalaryDetails
+    ): AttendanceEntity {
+        require(details.baseSalary.isFinite() && details.overtimeSalary.isFinite() &&
+            details.fineAmount.isFinite() && details.totalSalary.isFinite())
+        val updated = attendance.copy(
+            baseSalary = details.baseSalary,
+            overtimeSalary = details.overtimeSalary,
+            fineAmount = details.fineAmount,
+            totalSalary = details.totalSalary
+        )
+        attendanceDao.updateAttendance(updated)
+        return updated
+    }
+
+    fun getPendingOt(): Flow<List<AttendanceWithDetails>> = attendanceDao.getPendingOt()
+
+    suspend fun decideOt(id: Long, approved: Boolean, approvedMinutes: Long): Boolean =
+        attendanceDao.decideOt(
+            id,
+            if (approved) "APPROVED" else "REJECTED",
+            if (approved) approvedMinutes else 0
+        ) == 1
+
+    fun getAccumulatedSalaryByStaff(staffId: Long): Flow<Double?> =
+        attendanceDao.getAccumulatedSalaryByStaff(staffId)
 
     suspend fun getActiveAttendance(staffId: Long): AttendanceEntity? {
         return attendanceDao.getActiveAttendance(staffId)

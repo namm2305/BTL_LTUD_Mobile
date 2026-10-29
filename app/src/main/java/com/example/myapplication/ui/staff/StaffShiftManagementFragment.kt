@@ -1,6 +1,7 @@
 package com.example.myapplication.ui.staff
 
 import android.os.Bundle
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,6 +19,9 @@ import com.example.myapplication.ui.adapter.OwnerAttendanceAdapter
 import com.example.myapplication.ui.adapter.StaffRegisteredShiftAdapter
 import com.example.myapplication.ui.viewmodel.StaffViewModel
 import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.Job
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -37,6 +41,7 @@ class StaffShiftManagementFragment : Fragment() {
 
     private lateinit var registeredShiftAdapter: StaffRegisteredShiftAdapter
     private lateinit var attendanceHistoryAdapter: OwnerAttendanceAdapter
+    private var tabDataJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -89,6 +94,9 @@ class StaffShiftManagementFragment : Fragment() {
                 val total = totalSalary ?: 0.0
                 val formatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
                 binding.tvStaffTotalSalary.text = "Thu nhập tích lũy: ${formatter.format(total)}"
+                binding.tvStaffTotalSalary.setTextColor(
+                    Color.parseColor(if (total < 0) "#D32F2F" else "#2E7D32")
+                )
             }
         }
 
@@ -187,7 +195,12 @@ class StaffShiftManagementFragment : Fragment() {
 
     private fun setupTabsAndRecyclerView() {
         registeredShiftAdapter = StaffRegisteredShiftAdapter()
-        attendanceHistoryAdapter = OwnerAttendanceAdapter()
+        attendanceHistoryAdapter = OwnerAttendanceAdapter { item ->
+            if (childFragmentManager.findFragmentByTag("shift_salary_detail") == null) {
+                ShiftSalaryDetailDialog.newInstance(staffUserId, item.attendance.id)
+                    .show(childFragmentManager, "shift_salary_detail")
+            }
+        }
 
         binding.rvShiftManagementList.layoutManager = LinearLayoutManager(requireContext())
         binding.rvShiftManagementList.adapter = registeredShiftAdapter
@@ -196,24 +209,27 @@ class StaffShiftManagementFragment : Fragment() {
         binding.tabLayoutShiftManagement.addTab(binding.tabLayoutShiftManagement.newTab().setText("Lịch Sử Ca Đã Làm"))
 
         fun loadTabData(tabPosition: Int) {
+            tabDataJob?.cancel()
             if (tabPosition == 0) {
                 // Tab 0: Ca Sắp Tới (Đã Đăng Ký)
                 binding.rvShiftManagementList.adapter = registeredShiftAdapter
-                viewLifecycleOwner.lifecycleScope.launch {
-                    viewModel.getRegistrationsByStaff(staffUserId).collectLatest { list ->
-                        if (_binding == null) return@collectLatest
-                        registeredShiftAdapter.submitList(list)
-                        binding.tvEmptyShiftManagementList.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                tabDataJob = viewLifecycleOwner.lifecycleScope.launch {
+                    viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        viewModel.getRegistrationsByStaff(staffUserId).collectLatest { list ->
+                            registeredShiftAdapter.submitList(list)
+                            binding.tvEmptyShiftManagementList.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                        }
                     }
                 }
             } else {
                 // Tab 1: Lịch Sử Ca Đã Làm
                 binding.rvShiftManagementList.adapter = attendanceHistoryAdapter
-                viewLifecycleOwner.lifecycleScope.launch {
-                    viewModel.getAttendanceByStaff(staffUserId).collectLatest { list ->
-                        if (_binding == null) return@collectLatest
-                        attendanceHistoryAdapter.submitList(list)
-                        binding.tvEmptyShiftManagementList.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                tabDataJob = viewLifecycleOwner.lifecycleScope.launch {
+                    viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                        viewModel.getAttendanceByStaff(staffUserId).collectLatest { list ->
+                            attendanceHistoryAdapter.submitList(list)
+                            binding.tvEmptyShiftManagementList.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                        }
                     }
                 }
             }

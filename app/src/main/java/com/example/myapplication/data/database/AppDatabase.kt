@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import com.example.myapplication.data.model.ShiftSalaryDetails
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.myapplication.data.dao.*
 import com.example.myapplication.data.entity.*
@@ -24,7 +26,7 @@ import kotlinx.coroutines.launch
         AttendanceEntity::class,
         ShiftRegistrationEntity::class
     ],
-    version = 8,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,6 +43,70 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun shiftRegistrationDao(): ShiftRegistrationDao
 
     companion object {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE attendance ADD COLUMN baseSalary REAL NOT NULL DEFAULT 0.0")
+                // Backfill salary components without deleting attendance or other app data.
+                db.query("""
+                    SELECT a.id, a.actualCheckIn, a.actualCheckOut, a.earlyPenalty,
+                           a.overtimePay, a.totalSalary, a.isPaid,
+                           s.expectedStartTime, s.expectedEndTime, s.hourlyRate, s.isOvernight
+                    FROM attendance a LEFT JOIN shifts s ON s.id = a.shiftId
+                """.trimIndent()).use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(0)
+                        if (cursor.isNull(2)) {
+                            db.execSQL("UPDATE attendance SET earlyPenalty = 0.0 WHERE id = ?", arrayOf(id))
+                            continue
+                        }
+                        val fine = cursor.getDouble(3)
+                        val overtime = cursor.getDouble(4)
+                        // Preserve already paid amounts; recover the original base for unpaid rows.
+                        val base = if (cursor.getInt(6) != 0 || cursor.isNull(7)) {
+                            cursor.getDouble(5) + fine - overtime
+                        } else {
+                            fun hours(value: String): Double {
+                                val parts = value.split(":")
+                                return parts[0].toDouble() + parts[1].toDouble() / 60.0
+                            }
+                            val start = hours(cursor.getString(7))
+                            var end = hours(cursor.getString(8))
+                            if (cursor.getInt(10) != 0 || end <= start) end += 24.0
+                            val worked = ((cursor.getLong(2) - cursor.getLong(1)) / 3_600_000.0)
+                                .coerceAtLeast(0.0)
+                            minOf(worked, end - start) * cursor.getDouble(9)
+                        }
+                        val details = ShiftSalaryDetails(base, overtime, fine)
+                        db.execSQL(
+                            "UPDATE attendance SET baseSalary = ?, totalSalary = ? WHERE id = ?",
+                            arrayOf<Any>(details.baseSalary, details.totalSalary, id)
+                        )
+                    }
+                }
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE attendance ADD COLUMN otMinutes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE attendance ADD COLUMN otStatus TEXT NOT NULL DEFAULT 'NONE'")
+                db.execSQL("ALTER TABLE attendance ADD COLUMN approvedOtMinutes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE attendance ADD COLUMN otRatePerHour REAL NOT NULL DEFAULT 0.0")
+                // Preserve historical OT and salary; approval applies to new check-outs.
+                db.execSQL("""
+                    UPDATE attendance SET
+                    otRatePerHour = COALESCE((SELECT hourlyRate * overtimeMultiplier
+                        FROM shifts WHERE shifts.id = attendance.shiftId), 0.0)
+                """.trimIndent())
+                db.execSQL("""
+                    UPDATE attendance SET otStatus = 'APPROVED',
+                    otMinutes = CAST(ROUND(overtimePay * 60.0 / otRatePerHour) AS INTEGER),
+                    approvedOtMinutes = CAST(ROUND(overtimePay * 60.0 / otRatePerHour) AS INTEGER)
+                    WHERE overtimePay > 0.0 AND otRatePerHour > 0.0 AND actualCheckOut IS NOT NULL
+                """.trimIndent())
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -51,6 +117,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "restaurant_database"
                 )
+                .addMigrations(MIGRATION_8_9, MIGRATION_9_10)
                 .fallbackToDestructiveMigration(true)
                 .addCallback(DatabaseCallback(context.applicationContext))
                 .build()

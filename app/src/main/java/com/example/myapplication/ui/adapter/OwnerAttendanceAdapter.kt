@@ -2,6 +2,8 @@ package com.example.myapplication.ui.adapter
 
 import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
+import java.text.NumberFormat
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -12,7 +14,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class OwnerAttendanceAdapter :
+class OwnerAttendanceAdapter(
+    private val onSalaryClick: ((AttendanceWithDetails) -> Unit)? = null
+) :
     ListAdapter<AttendanceWithDetails, OwnerAttendanceAdapter.AttendanceViewHolder>(DiffCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AttendanceViewHolder {
@@ -35,6 +39,22 @@ class OwnerAttendanceAdapter :
             val shift = item.shift
 
             val timeFormat = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault())
+
+            binding.tvSalarySummary.visibility = if (onSalaryClick != null) View.VISIBLE else View.GONE
+            val formatter = NumberFormat.getNumberInstance(Locale("vi", "VN"))
+            binding.tvSalarySummary.text = if (attendance.actualCheckOut != null) {
+                "Thực nhận: ${formatter.format(attendance.totalSalary)} VNĐ · Xem chi tiết"
+            } else {
+                "Lương chưa chốt · Xem chi tiết"
+            }
+            binding.tvSalarySummary.setTextColor(
+                Color.parseColor(if (attendance.totalSalary < 0) "#D32F2F" else "#2E7D32")
+            )
+            binding.root.isClickable = onSalaryClick != null
+            binding.root.isFocusable = onSalaryClick != null
+            binding.root.setOnClickListener(
+                onSalaryClick?.let { callback -> View.OnClickListener { callback(item) } }
+            )
 
             binding.tvStaffName.text = staff?.fullName ?: "Nhân viên ID ${attendance.staffId}"
             binding.tvShiftName.text = shift?.shiftName ?: "Ca làm"
