@@ -1,6 +1,7 @@
 package com.example.myapplication.ui.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -8,6 +9,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.myapplication.data.entity.ShiftEntity
 import com.example.myapplication.databinding.ItemOwnerShiftBinding
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Locale
 
 class OwnerShiftAdapter(
@@ -37,8 +40,39 @@ class OwnerShiftAdapter(
             binding.tvHourlyRate.text = "Lương/giờ: ${formatter.format(shift.hourlyRate)}/h"
             binding.tvOvertimeMultiplier.text = "Hệ số tăng ca: x${shift.overtimeMultiplier}"
 
-            binding.btnDeleteShift.setOnClickListener { onDeleteClick(shift) }
+            val canDelete = !hasShiftEnded(shift)
+            binding.btnDeleteShift.visibility = if (canDelete) View.VISIBLE else View.GONE
+            binding.btnDeleteShift.setOnClickListener(
+                if (canDelete) View.OnClickListener {
+                    // Recheck if the row has remained visible past the shift's end.
+                    if (hasShiftEnded(shift)) {
+                        binding.btnDeleteShift.visibility = View.GONE
+                    } else {
+                        onDeleteClick(shift)
+                    }
+                } else null
+            )
         }
+    }
+
+    private fun hasShiftEnded(shift: ShiftEntity): Boolean {
+        // Without a date, the end of a legacy shift cannot be determined safely.
+        if (shift.workDate.isBlank()) return true
+        val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).apply {
+            isLenient = false
+        }
+        val endDate = try {
+            format.parse("${shift.workDate} ${shift.expectedEndTime}")
+        } catch (_: java.text.ParseException) {
+            null
+        } ?: return true
+        val end = Calendar.getInstance().apply {
+            time = endDate
+            if (shift.isOvernight || shift.expectedEndTime < shift.expectedStartTime) {
+                add(Calendar.DAY_OF_MONTH, 1)
+            }
+        }
+        return System.currentTimeMillis() >= end.timeInMillis
     }
 
     companion object {
