@@ -16,6 +16,7 @@ import com.example.myapplication.data.model.OrderWithItems
 import com.example.myapplication.databinding.DialogStaffPaymentBinding
 import com.example.myapplication.databinding.FragmentStaffOrderBinding
 import com.example.myapplication.ui.adapter.StaffOrderAdapter
+import com.example.myapplication.ui.customer.OrderEditorDialog
 import com.example.myapplication.ui.viewmodel.StaffViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -53,11 +54,20 @@ class StaffOrderFragment : Fragment() {
     private fun setupRecyclerView() {
         adapter = StaffOrderAdapter(
             onServeClick = { orderWithItems ->
-                viewModel.updateOrderStatus(orderWithItems.order, Order.STATUS_SERVED)
-                Toast.makeText(requireContext(), "Đã cập nhật: Đã phục vụ bàn ${orderWithItems.order.tableName}", Toast.LENGTH_SHORT).show()
+                val next = if (orderWithItems.order.status == Order.STATUS_PENDING)
+                    Order.STATUS_CONFIRMED else Order.STATUS_SERVED
+                viewModel.updateOrderStatus(orderWithItems.order, next) { _, message ->
+                    context?.let { Toast.makeText(it, message, Toast.LENGTH_SHORT).show() }
+                }
             },
             onPaymentClick = { orderWithItems ->
                 showPaymentDialog(orderWithItems)
+            },
+            onEditClick = { order ->
+                if (childFragmentManager.findFragmentByTag("order_editor") == null) {
+                    OrderEditorDialog.newInstance(order.order.id, order.order.tableId)
+                        .show(childFragmentManager, "order_editor")
+                }
             }
         )
         binding.rvActiveOrders.layoutManager = LinearLayoutManager(requireContext())
@@ -106,7 +116,7 @@ class StaffOrderFragment : Fragment() {
     private fun showPaymentDialog(orderWithItems: OrderWithItems) {
         val dialogBinding = DialogStaffPaymentBinding.inflate(layoutInflater)
         val order = orderWithItems.order
-        val subTotal = order.totalAmount
+        var subTotal = order.totalAmount
 
         val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
 
@@ -186,6 +196,23 @@ class StaffOrderFragment : Fragment() {
             }
         }
 
+        val paymentObserver = viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.observeOrder(order.id).collectLatest { latest ->
+                if (latest == null || latest.order.status !in listOf("PENDING", "CONFIRMED", "SERVED")) {
+                    alertDialog.dismiss()
+                    return@collectLatest
+                }
+                subTotal = latest.order.totalAmount
+                dialogBinding.tvSubTotal.text = "Tổng tiền gốc: ${currencyFormatter.format(subTotal)}"
+                if (appliedDiscount?.let { subTotal < it.minOrderAmount } == true) {
+                    appliedDiscount = null
+                    dialogBinding.tvDiscountMessage.text = "Đơn thay đổi, không còn đủ điều kiện giảm giá."
+                    dialogBinding.tvDiscountMessage.visibility = View.VISIBLE
+                }
+                updatePaymentTotals()
+            }
+        }
+        alertDialog.setOnDismissListener { paymentObserver.cancel() }
         alertDialog.show()
     }
 

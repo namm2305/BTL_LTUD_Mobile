@@ -332,14 +332,18 @@ class StaffViewModel(
             if (success) {
                 onResult(true, "Thanh toán thành công!")
             } else {
-                onResult(false, "Không tìm thấy đơn hàng!")
+                onResult(false, "Đơn vừa thay đổi hoặc đã thanh toán. Vui lòng kiểm tra lại hóa đơn.")
             }
         }
     }
 
-    fun updateOrderStatus(order: Order, newStatus: String) {
+    fun observeOrder(id: Long): Flow<OrderWithItems?> = orderRepository.getOrderWithItemsById(id)
+
+    fun updateOrderStatus(order: Order, newStatus: String, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
         viewModelScope.launch {
-            orderRepository.updateOrder(order.copy(status = newStatus))
+            val success = orderRepository.updateOrder(order.copy(status = newStatus))
+            onResult(success, if (success) "Đã cập nhật trạng thái đơn."
+                else "Đơn vừa thay đổi hoặc đã thanh toán. Vui lòng kiểm tra lại.")
         }
     }
 }

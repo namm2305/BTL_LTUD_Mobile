@@ -16,14 +16,7 @@ class OrderRepository(
 ) {
 
     suspend fun createOrder(order: Order, items: List<OrderItem>): Long {
-        // Chèn đơn hàng mới
-        val orderId = orderDao.insertOrder(order)
-        // Chèn danh sách món kèm theo orderId
-        val itemsWithOrderId = items.map { it.copy(orderId = orderId) }
-        orderItemDao.insertOrderItems(itemsWithOrderId)
-        // Đổi trạng thái bàn thành OCCUPIED (có khách)
-        tableDao.updateTableStatus(order.tableId, RestaurantTable.STATUS_OCCUPIED)
-        return orderId
+        return orderDao.createWithItems(order, items)
     }
 
     fun getActiveOrders(): Flow<List<OrderWithItems>> = orderDao.getActiveOrdersWithItems()
@@ -34,22 +27,17 @@ class OrderRepository(
 
     suspend fun getOrderWithItemsByIdSync(orderId: Long): OrderWithItems? = orderDao.getOrderWithItemsByIdSync(orderId)
 
-    suspend fun updateOrder(order: Order) = orderDao.updateOrder(order)
+    suspend fun updateOrder(order: Order): Boolean =
+        orderDao.transitionStatus(order.id, order.revision, order.status)
+
+    fun getOrdersByTable(tableId: Long): Flow<List<OrderWithItems>> = orderDao.getOrdersByTable(tableId)
+
+    suspend fun editItems(orderId: Long, tableId: Long, staff: Boolean, revision: Long,
+        changes: List<com.example.myapplication.data.model.OrderItemChange>) =
+        orderDao.editItems(orderId, tableId, staff, revision, changes)
 
     suspend fun completePayment(orderId: Long, paymentMethod: String, discountCode: String? = null, discountAmount: Double = 0.0, finalAmount: Double): Boolean {
-        val order = orderDao.getOrderById(orderId) ?: return false
-        val updatedOrder = order.copy(
-            paymentMethod = paymentMethod,
-            discountCode = discountCode,
-            discountAmount = discountAmount,
-            finalAmount = finalAmount,
-            status = Order.STATUS_COMPLETED,
-            completedAt = System.currentTimeMillis()
-        )
-        orderDao.updateOrder(updatedOrder)
-        // Chuyển trạng thái bàn về trống
-        tableDao.updateTableStatus(order.tableId, RestaurantTable.STATUS_EMPTY)
-        return true
+        return orderDao.payOrder(orderId, paymentMethod, discountCode, discountAmount, finalAmount)
     }
 
     fun getCompletedOrdersBetween(startTime: Long, endTime: Long): Flow<List<Order>> =

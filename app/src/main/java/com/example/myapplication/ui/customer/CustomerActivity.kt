@@ -54,6 +54,14 @@ class CustomerActivity : AppCompatActivity() {
 
         setupRecyclerView()
         observeData()
+        binding.toolbarCustomer.menu.add("Đơn đã gọi")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
+        binding.toolbarCustomer.setOnMenuItemClickListener {
+            if (supportFragmentManager.findFragmentByTag("customer_orders") == null) {
+                CustomerOrdersDialog().show(supportFragmentManager, "customer_orders")
+            }
+            true
+        }
 
         binding.btnViewCart.setOnClickListener {
             showCartDialog()
@@ -165,7 +173,7 @@ class CustomerActivity : AppCompatActivity() {
 
                 if (currentList.isEmpty() && dialog.isShowing) {
                     dialog.dismiss()
-                    Toast.makeText(this@CustomerActivity, "Giỏ hàng đã hết món", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@CustomerActivity, "", Toast.LENGTH_SHORT).show()
                 }
             }
         }

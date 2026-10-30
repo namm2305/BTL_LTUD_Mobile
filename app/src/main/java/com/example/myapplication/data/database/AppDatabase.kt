@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
         AttendanceEntity::class,
         ShiftRegistrationEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -107,6 +107,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE orders ADD COLUMN revision INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE order_items ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'")
+                db.execSQL("ALTER TABLE order_items ADD COLUMN cancellationReason TEXT")
+                db.execSQL("""
+                    UPDATE order_items SET status = CASE
+                        WHEN (SELECT status FROM orders WHERE orders.id = order_items.orderId) = 'CANCELLED'
+                            THEN 'CANCELLED'
+                        WHEN (SELECT status FROM orders WHERE orders.id = order_items.orderId) != 'PENDING'
+                            THEN 'CONFIRMED'
+                        ELSE 'PENDING' END
+                """.trimIndent())
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -117,7 +133,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "restaurant_database"
                 )
-                .addMigrations(MIGRATION_8_9, MIGRATION_9_10)
+                .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                 .fallbackToDestructiveMigration(true)
                 .addCallback(DatabaseCallback(context.applicationContext))
                 .build()

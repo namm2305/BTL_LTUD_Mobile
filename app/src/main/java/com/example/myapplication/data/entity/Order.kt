@@ -1,5 +1,6 @@
 package com.example.myapplication.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -33,10 +34,14 @@ data class Order(
     val paymentMethod: String? = null, // "CASH" (Tiền mặt) hoặc "TRANSFER" (Chuyển khoản)
     val status: String = STATUS_PENDING, // "PENDING", "SERVED", "COMPLETED", "CANCELLED"
     val createdAt: Long = System.currentTimeMillis(),
-    val completedAt: Long? = null
+    val completedAt: Long? = null,
+    @ColumnInfo(defaultValue = "0")
+    val revision: Long = 0
 ) {
     companion object {
         const val STATUS_PENDING = "PENDING"     // Chờ phục vụ (Khách vừa đặt món)
+        const val STATUS_CONFIRMED = "CONFIRMED"
+        const val STATUS_PAID = "PAID"
         const val STATUS_SERVED = "SERVED"       // Đã phục vụ món
         const val STATUS_COMPLETED = "COMPLETED" // Đã thanh toán & hoàn thành
         const val STATUS_CANCELLED = "CANCELLED" // Đã hủy đơn

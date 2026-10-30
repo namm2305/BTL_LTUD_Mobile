@@ -1,5 +1,6 @@
 package com.example.myapplication.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -25,5 +26,8 @@ data class OrderItem(
     val menuItemName: String,
     val price: Double,
     val quantity: Int,
-    val note: String? = null
+    val note: String? = null,
+    @ColumnInfo(defaultValue = "'PENDING'")
+    val status: String = "PENDING",
+    val cancellationReason: String? = null
 )

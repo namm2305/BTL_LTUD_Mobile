@@ -18,7 +18,8 @@ import java.util.Locale
 
 class StaffOrderAdapter(
     private val onServeClick: (OrderWithItems) -> Unit,
-    private val onPaymentClick: (OrderWithItems) -> Unit
+    private val onPaymentClick: (OrderWithItems) -> Unit,
+    private val onEditClick: (OrderWithItems) -> Unit
 ) : ListAdapter<OrderWithItems, StaffOrderAdapter.OrderViewHolder>(DiffCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): OrderViewHolder {
@@ -47,8 +48,14 @@ class StaffOrderAdapter(
             binding.tvTotalAmount.text = "Tổng: ${currencyFormatter.format(order.totalAmount)}"
 
             if (order.status == Order.STATUS_PENDING) {
-                binding.tvOrderStatus.text = "Chờ phục vụ"
+                binding.tvOrderStatus.text = "Mới gọi"
+                binding.btnServeOrder.text = "Xác nhận"
                 binding.tvOrderStatus.setBackgroundColor(Color.parseColor("#FF9800"))
+                binding.btnServeOrder.visibility = View.VISIBLE
+            } else if (order.status == Order.STATUS_CONFIRMED) {
+                binding.tvOrderStatus.text = "Đã xác nhận"
+                binding.tvOrderStatus.setBackgroundColor(Color.parseColor("#2196F3"))
+                binding.btnServeOrder.text = "Phục vụ"
                 binding.btnServeOrder.visibility = View.VISIBLE
             } else {
                 binding.tvOrderStatus.text = "Đã phục vụ"
@@ -63,6 +70,7 @@ class StaffOrderAdapter(
 
             binding.btnServeOrder.setOnClickListener { onServeClick(orderWithItems) }
             binding.btnPayment.setOnClickListener { onPaymentClick(orderWithItems) }
+            binding.btnEditOrder.setOnClickListener { onEditClick(orderWithItems) }
         }
     }
 

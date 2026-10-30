@@ -33,6 +33,9 @@ class ViewModelFactory(private val context: Context) : ViewModelProvider.Factory
             modelClass.isAssignableFrom(StaffViewModel::class.java) -> {
                 StaffViewModel(timekeepingRepository, orderRepository, tableRepository, discountRepository) as T
             }
+            modelClass.isAssignableFrom(OrderEditViewModel::class.java) -> {
+                OrderEditViewModel(orderRepository, timekeepingRepository) as T
+            }
             modelClass.isAssignableFrom(CustomerViewModel::class.java) -> {
                 CustomerViewModel(tableRepository, menuRepository, orderRepository) as T
             }

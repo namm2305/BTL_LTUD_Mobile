@@ -9,6 +9,9 @@ import com.example.myapplication.data.entity.RestaurantTable
 import com.example.myapplication.data.repository.MenuRepository
 import com.example.myapplication.data.repository.OrderRepository
 import com.example.myapplication.data.repository.TableRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +49,11 @@ class CustomerViewModel(
     fun setTableDirectly(table: RestaurantTable) {
         _selectedTable.value = table
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val tableOrders = selectedTable.flatMapLatest { table ->
+        if (table == null) flowOf(emptyList()) else orderRepository.getOrdersByTable(table.id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // --- Menu món ăn đang khả dụng ---
     val availableMenuItems: StateFlow<List<MenuItem>> = menuRepository.getAvailableMenuItems()
